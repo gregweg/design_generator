@@ -72,7 +72,7 @@ def generate_prompts_from_topics(topics):
         f"Each should be a single sentence or phrase describing a visually interesting vector image for a T-Shirt. Format as a numbered list."
     )
 
-    response = client.chat.completions.create(model="gpt-4",
+    response = client.chat.completions.create(model="gpt-3.5-turbo",
     messages=[
         {"role": "system", "content": "You are a creative design assistant for a hip clothing company."},
         {"role": "user", "content": prompt}
@@ -122,7 +122,8 @@ def generate_image(prompt, index, size="1024x1024"):
 
         # Download image
         img_data = requests.get(image_url).content
-        filename = os.path.join(IMAGE_OUTPUT_DIR, f"dalle_image_{index+1}.png")
+        timestamp = datetime.now().strftime("%Y-%b-%d_%H%M")
+        filename = os.path.join(IMAGE_OUTPUT_DIR, f"dalle_image_{index+1}_{timestamp}.png")
         with open(filename, "wb") as f:
             f.write(img_data)
 
@@ -147,6 +148,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate daily DALL·E image designs from trending topics.")
     parser.add_argument("--dry-run", action="store_true", help="Only generate and preview prompts, do not call DALL·E.")
     parser.add_argument("--quote-csv", help="Path to a CSV file with a 'quote' column to also generate image prompts.")
+    parser.add_argument("--max-images", type=int, default=DEFAULT_MAX_IMAGES, help="Maximum number of images to generate (default: 20).")
     args = parser.parse_args()
 
     prompts = []
@@ -158,14 +160,17 @@ if __name__ == "__main__":
         #quote_prompts = [quote_to_prompt(q) for q in quote_texts]
         #prompts.extend(quote_prompts)
     else:
-		# Get trending topics and generate prompts
-    	topics = get_combined_trending_topics()
-    	prompt_texts = generate_prompts_from_topics(topics)
-    	prompts = extract_prompts(prompt_texts)
+        # Get trending topics and generate prompts
+        topics = get_combined_trending_topics()
+        prompt_texts = generate_prompts_from_topics(topics)
+        prompts = extract_prompts(prompt_texts)
 
     if not prompts:
         print("⚠️ No prompts to generate images from. Exiting.")
         exit(0)
+
+    # Limit prompts to max_images
+    prompts = prompts[:args.max_images]
 
     # Save intermediate CSV to review later
     save_prompts_to_csv(prompts, output_dir=".")
